@@ -4,7 +4,16 @@ const manager = require('../../db/unmManager.js');
 
 /* GET home page. */
 router.get('/', async function(req, res, next) {
-  await manager.init
+    if((await manager.initTable()).success) {
+        res.json({
+            success: true
+        })
+    }else{
+        res.json({
+            success: false
+        });
+    }
+  
 });
 
 module.exports = router;

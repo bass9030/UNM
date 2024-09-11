@@ -51,21 +51,21 @@ async function initTable() {
     let db;
     try {
         db = await pool.getConnection();
-        await db.execute('CREATE TABLE IF NOT EXISTS students (id CHAR(8) UNIQUE PRIMARY KEY,' +
-            'grade TINYINT(3),' +
-            'classNo TINYINT(9),' +
-            'number TINYINT);');
-        await db.execute('CREATE TABLE IF NOT EXISTS schedule (id CHAR(8) UNIQUE PRIMARY KEY,' +
-            'classNo TINYINT(9), ' +
-            'monA1 BOOLEAN, monN1 BOOLEAN, monN2 BOOLAN, ' +
-            'tueA1 BOOLEAN, tueN1 BOOLEAN, tueN2 BOOLAN, ' +
-            'thuA1 BOOLEAN, thuN1 BOOLEAN, thuN2 BOOLAN, ' +
-            'friA1 BOOLEAN, friN1 BOOLEAN, friN2 BOOLAN, ' +
+        await db.execute('CREATE TABLE IF NOT EXISTS students (id CHAR(8) UNIQUE PRIMARY KEY NOT NULL,' +
+            'grade TINYINT(3) NOT NULL,' +
+            'classNo TINYINT(9) NOT NULL,' +
+            'number TINYINT NOT NULL);');
+        await db.execute('CREATE TABLE IF NOT EXISTS schedule (id CHAR(8) UNIQUE PRIMARY KEY NOT NULL,' +
+            'classNo TINYINT(9) NOT NULL,' +
+            'monA1 BOOLEAN NOT NULL DEFAULT 0, monN1 BOOLEAN NOT NULL DEFAULT 0, monN2 BOOLEAN NOT NULL DEFAULT 0, ' +
+            'tueA1 BOOLEAN NOT NULL DEFAULT 0, tueN1 BOOLEAN NOT NULL DEFAULT 0, tueN2 BOOLEAN NOT NULL DEFAULT 0,' +
+            'thuA1 BOOLEAN NOT NULL DEFAULT 0, thuN1 BOOLEAN NOT NULL DEFAULT 0, thuN2 BOOLEAN NOT NULL DEFAULT 0,' +
+            'friA1 BOOLEAN NOT NULL DEFAULT 0, friN1 BOOLEAN NOT NULL DEFAULT 0, friN2 BOOLEAN NOT NULL DEFAULT 0,' +
             'FOREIGN KEY(id) REFERENCES students(id));');
-        await db.execute('CREATE TABLE IF NOT EXISTS attendanceInfo (_id NUMBER PRIMARY KEY AUTO_INCREAMENT' +
-            'id CHAR(8) UNIQUE,' +
-            'timestamp TIMESTAMP,' +
-            'period CHAR(2),' +
+        await db.execute('CREATE TABLE IF NOT EXISTS attendanceInfo (_id BIGINT AUTO_INCREMENT PRIMARY KEY,' +
+            'id CHAR(8) UNIQUE NOT NULL,' +
+            'attendaceTime TIMESTAMP NOT NULL,' +
+            'period CHAR(2) NOT NULL,' +
             'FOREIGN KEY(id) REFERENCES students(id));');
         return {
             success: true,
@@ -294,6 +294,18 @@ async function registerAttendace(student, period) {
     }finally{
         if(!!db) db.end();
     }
+}
+
+async function getAttendaceInfoByStudent(student) {
+    
+}
+
+async function getAttendaceInfoByDate(classNo, date) {
+
+}
+
+async function getAttendaceInfoByPeriod(classNo, from_date, to_date) {
+
 }
 
 module.exports = {
