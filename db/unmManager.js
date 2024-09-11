@@ -9,7 +9,7 @@ const pool = require('./dbConnector.js');
 
 /**
  * @typedef {Object} Student
- * @property {string} id 학생증 바코드 번호
+ * @property {string} id 학생증 ID
  * @property {number} grade 학년
  * @property {number} classNo 반
  * @property {number} number 번호
@@ -32,8 +32,11 @@ const pool = require('./dbConnector.js');
  */
 
 /**
- * 
- * @returns 
+ * @typedef {Object} attendanceInfo
+ * @property {number} _id 식별용 ID
+ * @property {string} id 학생증 ID
+ * @property {Date} attendaceTime 출석 시간
+ * @property {PERIOD} period 교시(오자, 야자1, 야자2)
  */
 
 /* ======================= */
@@ -296,16 +299,59 @@ async function registerAttendace(student, period) {
     }
 }
 
-async function getAttendaceInfoByStudent(student) {
-    
-}
 
-async function getAttendaceInfoByDate(classNo, date) {
+/**
+ * @typedef {BaseResult & {data: attendanceInfo[]}} attendaceInfoResults
+ */
 
-}
+/**
+ * 야자 출석 정보 불러오기 옵션
+ * @typedef {Object} attendaceInfoQueryOptions
+ * @property {Student} student 특정 학생의 야자 출석 정보를 불러옵니다.
+ * @property {Date} date 특정 날짜의 야자 출석 정보를 불러옵니다.
+ * @property {Date} startDate 특정 날짜범위의 야자 출석 정보를 불러옵니다. 날짜범위의 시작점입니다.
+ * @property {Date} endDate 특정 날짜범위의 야자 출석 정보를 불러옵니다. 날짜범위의 종료점입니다.
+ */
 
-async function getAttendaceInfoByPeriod(classNo, from_date, to_date) {
+/**
+ * 야자 출석 정보를 반환합니다.
+ * @param {attendaceInfoQueryOptions} options 불러오기 옵션
+ * @returns {attendaceInfoResults}
+ */
+async function getAttendaceInfo(options) {
+    let db;
+    try {
+        db = await pool.getConnection();
 
+        let dateStart;
+        let dateEnd;
+
+        if(!!options.date) {
+            dateStart = `${options.date.getFullYear()}-${options.date.getMonth() + 1}-${options.date.getDate()} 00:00:00`;
+            dateEnd = `${options.date.getFullYear()}-${options.date.getMonth() + 1}-${options.date.getDate()} 23:59:59`;
+        }else if(!!options.startDate && !!options.endDate) {
+            dateStart = `${options.startDate.getFullYear()}-${options.startDate.getMonth() + 1}-${options.startDate.getDate()} 00:00:00`;
+            dateStart = `${options.endDate.getFullYear()}-${options.endDate.getMonth() + 1}-${options.endDate.getDate()} 23:59:59`;
+        }
+
+        let result = await db.execute('SELECT * FROM attendaceInfo WHERE (0 = ? OR id = ?)' +
+            'AND (0 = ? OR attendaceTime BETWEEN ? AND ?);', [
+                !!options.student ? 1 : 0, options.id,
+                (!!options.date || (!!options.startDate && !!options.endDate)) ? 1 : 0, dateStart, dateEnd
+            ]);
+        return {
+            success: true,
+            data: result,
+        };
+    }catch(e){
+        console.error(e)
+        return {
+            success: false,
+            error: e
+        };
+    }finally{
+        if(!!db) db.end();
+    }
 }
 
 module.exports = {
