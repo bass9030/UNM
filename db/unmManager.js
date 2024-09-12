@@ -18,6 +18,8 @@ const pool = require('./dbConnector.js');
 /**
  * @typedef {Object} WeekSchedule
  * @property {number} classNo
+ * @property {number} posX
+ * @property {number} posY
  * @property {DaySchedule} monSchedule
  * @property {DaySchedule} tueSchedule
  * @property {DaySchedule} thuSchedule
@@ -35,7 +37,7 @@ const pool = require('./dbConnector.js');
  * @typedef {Object} attendanceInfo
  * @property {number} _id 식별용 ID
  * @property {string} id 학생증 ID
- * @property {Date} attendaceTime 출석 시간
+ * @property {Date} attendanceTime 출석 시간
  * @property {PERIOD} period 교시(오자, 야자1, 야자2)
  */
 
@@ -46,6 +48,32 @@ const PERIOD = {
     N1: 'N1',
     N2: 'N2'
 };
+
+/**
+ * !! 디버깅용 외에 사용하지 마세요 !!
+ * DB 초기화
+ * @returns {BaseResult}
+ */
+async function resetDB() {
+    let db;
+    try {
+        db = await pool.getConnection();
+        await db.execute('DROP TABLE attendanceInfo;');
+        await db.execute('DROP TABLE schedule;');
+        await db.execute('DROP TABLE students;');
+        return {
+            success: true,
+        };
+    }catch(e){
+        console.error(e)
+        return {
+            success: false,
+            error: e
+        };
+    }finally{
+        if(!!db) db.end();
+    }
+}
 
 /**
  * DB Table 초기설정
@@ -59,7 +87,7 @@ async function initTable() {
             'classNo TINYINT(9) NOT NULL,' +
             'number TINYINT NOT NULL);');
         await db.execute('CREATE TABLE IF NOT EXISTS schedule (id CHAR(8) UNIQUE PRIMARY KEY NOT NULL,' +
-            'classNo TINYINT(9) NOT NULL,' +
+            'classNo TINYINT(9) NOT NULL, posX TINYINT NOT NULL, posY TINYINT NOT NULL,' +
             'monA1 BOOLEAN NOT NULL DEFAULT 0, monN1 BOOLEAN NOT NULL DEFAULT 0, monN2 BOOLEAN NOT NULL DEFAULT 0, ' +
             'tueA1 BOOLEAN NOT NULL DEFAULT 0, tueN1 BOOLEAN NOT NULL DEFAULT 0, tueN2 BOOLEAN NOT NULL DEFAULT 0,' +
             'thuA1 BOOLEAN NOT NULL DEFAULT 0, thuN1 BOOLEAN NOT NULL DEFAULT 0, thuN2 BOOLEAN NOT NULL DEFAULT 0,' +
@@ -67,7 +95,7 @@ async function initTable() {
             'FOREIGN KEY(id) REFERENCES students(id));');
         await db.execute('CREATE TABLE IF NOT EXISTS attendanceInfo (_id BIGINT AUTO_INCREMENT PRIMARY KEY,' +
             'id CHAR(8) UNIQUE NOT NULL,' +
-            'attendaceTime TIMESTAMP NOT NULL,' +
+            'attendanceTime TIMESTAMP NOT NULL,' +
             'period CHAR(2) NOT NULL,' +
             'FOREIGN KEY(id) REFERENCES students(id));');
         return {
@@ -175,7 +203,6 @@ async function addStudent(student) {
     }
 }
 
-
 /**
  * 야자 일정 추가/변경
  * @param {Student} student 
@@ -186,19 +213,29 @@ async function updateSchedule(student, schedule) {
     let db;
     try {
         db = await pool.getConnection();
-        let result = await db.execute('INSERT INTO schedule VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)' +
-            'OR DUPLICATE KEY UPDATE id = ?,' +
+        let result = await db.execute('INSERT INTO schedule VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+            'ON DUPLICATE KEY UPDATE classNo = ?,' +
+            'posX = ?, posY = ?,' +
             'monA1 = ?, monN1 = ?, monN2 = ?,' +
             'tueA1 = ?, tueN1 = ?, tueN2 = ?,' +
             'thuA1 = ?, thuN1 = ?, thuN2 = ?,' +
-            'friA1 = ?, friN1 = ?, friN2 = ?,',
+            'friA1 = ?, friN1 = ?, friN2 = ?;',
             [
-                student.id, schedule.classNo, 
+                // INSERT
+                student.id, schedule.classNo, schedule.posX, schedule.posY, 
                 schedule.monSchedule.A1, schedule.monSchedule.N1, schedule.monSchedule.N2,
                 schedule.tueSchedule.A1, schedule.tueSchedule.N1, schedule.tueSchedule.N2,
                 schedule.thuSchedule.A1, schedule.thuSchedule.N1, schedule.thuSchedule.N2,
                 schedule.friSchedule.A1, schedule.friSchedule.N1, schedule.friSchedule.N2,
-            ]);
+                
+                // UPDATE
+                schedule.classNo, schedule.posX, schedule.posY,
+                schedule.monSchedule.A1, schedule.monSchedule.N1, schedule.monSchedule.N2,
+                schedule.tueSchedule.A1, schedule.tueSchedule.N1, schedule.tueSchedule.N2,
+                schedule.thuSchedule.A1, schedule.thuSchedule.N1, schedule.thuSchedule.N2,
+                schedule.friSchedule.A1, schedule.friSchedule.N1, schedule.friSchedule.N2,
+            ]
+        );
         return {
             success: true,
         };
@@ -210,6 +247,39 @@ async function updateSchedule(student, schedule) {
         };
     }finally{
         if(!!db) db.end();
+    }
+}
+
+/**
+ * DB에서 나온 값을 WeebSchedule로 변환합니다.
+ * @param {Object} value 
+ * @returns {WeekSchedule} 
+ */
+function rawValue2WeekSchedule(value) {
+    return {
+        classNo: value.classNo,
+        posX: value.posX,
+        posY: value.posY,
+        monSchedule: {
+            A1: value.monA1 == 1,
+            N1: value.monN1 == 1,
+            N2: value.monN2 == 1,
+        },
+        tueSchedule: {
+            A1: value.tueA1 == 1,
+            N1: value.tueN1 == 1,
+            N2: value.tueN2 == 1,
+        },
+        thuSchedule: {
+            A1: value.thuA1 == 1,
+            N1: value.thuN1 == 1,
+            N2: value.thuN2 == 1,
+        },
+        friSchedule: {
+            A1: value.friA1 == 1,
+            N1: value.friN1 == 1,
+            N2: value.friN2 == 1,
+        },
     }
 }
 
@@ -225,11 +295,11 @@ async function getSchedule(student) {
     let db;
     try {
         db = await pool.getConnection();
-        let result = await db.execute('INSERT INTO students VALUES(?, ?, ?, ?);',
-            [student.id, student.grade, student.classNo, student.number]);
+        let result = await db.query('SELECT * FROM schedule WHERE id = ?;',
+            [student.id]);
         return {
             success: true,
-            data: result,
+            data: result.map(e => rawValue2WeekSchedule(e)),
         };
     }catch(e){
         console.error(e)
@@ -254,13 +324,13 @@ async function getAllSchedules(page) {
         db = await pool.getConnection();
         let result;
         if(!!page)
-            result = await db.execute('SELECT * FROM schedules LIMIT 25 OFFSET ?;',
+            result = await db.query('SELECT * FROM schedule LIMIT 25 OFFSET ?;',
                 [page * 25 + 1]);
         else 
-            result = await db.execute('SELECT * FROM schedules;');
+            result = await db.query('SELECT * FROM schedule;');
         return {
             success: true,
-            data: result,
+            data: result.map(e => rawValue2WeekSchedule(e)),
         };
     }catch(e){
         console.error(e)
@@ -283,8 +353,8 @@ async function registerAttendace(student, period) {
     let db;
     try {
         db = await pool.getConnection();
-        await db.execute('INSERT INTO attendanceInfo (id, timestamp, period) VALUES(?, ?, ?);',
-            [student.id, new Date().getTime(), period]);
+        await db.execute('INSERT INTO attendanceInfo (id, attendanceTime, period) VALUES(?, CURRENT_TIMESTAMP(), ?);',
+            [student.id, period]);
         return {
             success: true,
         };
@@ -301,12 +371,12 @@ async function registerAttendace(student, period) {
 
 
 /**
- * @typedef {BaseResult & {data: attendanceInfo[]}} attendaceInfoResults
+ * @typedef {BaseResult & {data: attendanceInfo[]}} attendanceInfoResults
  */
 
 /**
  * 야자 출석 정보 불러오기 옵션
- * @typedef {Object} attendaceInfoQueryOptions
+ * @typedef {Object} attendanceInfoQueryOptions
  * @property {Student} student 특정 학생의 야자 출석 정보를 불러옵니다.
  * @property {Date} date 특정 날짜의 야자 출석 정보를 불러옵니다.
  * @property {Date} startDate 특정 날짜범위의 야자 출석 정보를 불러옵니다. 날짜범위의 시작점입니다.
@@ -315,28 +385,33 @@ async function registerAttendace(student, period) {
 
 /**
  * 야자 출석 정보를 반환합니다.
- * @param {attendaceInfoQueryOptions} options 불러오기 옵션
- * @returns {attendaceInfoResults}
+ * @param {attendanceInfoQueryOptions} options 불러오기 옵션
+ * @returns {attendanceInfoResults}
  */
 async function getAttendaceInfo(options) {
     let db;
     try {
         db = await pool.getConnection();
 
-        let dateStart;
-        let dateEnd;
-
-        if(!!options.date) {
+        let dateStart = '';
+        let dateEnd = '';
+        if(!!!options) {
+            let result = await db.query('SELECT * FROM attendanceInfo;');
+            return {
+                success: true,
+                data: result,
+            };
+        }else if(!!options.date) {
             dateStart = `${options.date.getFullYear()}-${options.date.getMonth() + 1}-${options.date.getDate()} 00:00:00`;
             dateEnd = `${options.date.getFullYear()}-${options.date.getMonth() + 1}-${options.date.getDate()} 23:59:59`;
         }else if(!!options.startDate && !!options.endDate) {
             dateStart = `${options.startDate.getFullYear()}-${options.startDate.getMonth() + 1}-${options.startDate.getDate()} 00:00:00`;
-            dateStart = `${options.endDate.getFullYear()}-${options.endDate.getMonth() + 1}-${options.endDate.getDate()} 23:59:59`;
+            dateEnd = `${options.endDate.getFullYear()}-${options.endDate.getMonth() + 1}-${options.endDate.getDate()} 23:59:59`;
         }
 
-        let result = await db.execute('SELECT * FROM attendaceInfo WHERE (0 = ? OR id = ?)' +
-            'AND (0 = ? OR attendaceTime BETWEEN ? AND ?);', [
-                !!options.student ? 1 : 0, options.id,
+        let result = await db.query('SELECT * FROM attendanceInfo WHERE (0 = ? OR id = ?) ' +
+            'AND (0 = ? OR attendanceTime BETWEEN ? AND ?);', [
+                !!options.student ? 1 : 0, options.student?.id,
                 (!!options.date || (!!options.startDate && !!options.endDate)) ? 1 : 0, dateStart, dateEnd
             ]);
         return {
@@ -355,6 +430,7 @@ async function getAttendaceInfo(options) {
 }
 
 module.exports = {
+    resetDB,
     initTable,
     getAllStudents,
     getStudentById,
@@ -362,5 +438,6 @@ module.exports = {
     updateSchedule,
     getSchedule,
     getAllSchedules,
-    registerAttendace
+    registerAttendace,
+    getAttendaceInfo,
 }
