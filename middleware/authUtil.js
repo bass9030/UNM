@@ -7,7 +7,8 @@ const authUtil = {
      * @param {import("express").NextFunction} next
      */
     checkToken: async (req, res, next) => {
-        let token = req.headers.authorization?.replace("Bearer ", "");
+        let token = req.cookies.token;
+        console.log(req.cookies);
 
         // 토큰 없음
         if (!!!token) {
@@ -27,8 +28,7 @@ const authUtil = {
                 message: "만료되었거나 올바르지 않은 토큰입니다.",
             });
         }
-        req.id = user.data.id;
-        req.role = user.data.role;
+        req.jwt = user.data;
         next();
     },
 };
