@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <%- include('header.ejs') %>
+        <link rel="stylesheet" href="/stylesheets/login.css" />
+    </head>
+    <body>
+        <%- include('nav.ejs') %>
+        <div class="container">
+            <h2>로그인</h2>
+            <form class="login-form" onsubmit="javascript:login()" action="#">
+                <fieldset>
+                    <div class="mb-3">
+                        <label for="usernameInput" class="form-label"
+                            >아이디</label
+                        >
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="usernameInput"
+                            required
+                        />
+                    </div>
+                    <div class="mb-3">
+                        <label for="passwordInput" class="form-label"
+                            >비밀번호</label
+                        >
+                        <input
+                            type="password"
+                            class="form-control"
+                            id="passwordInput"
+                            required
+                        />
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        로그인
+                    </button>
+                </fieldset>
+            </form>
+        </div>
+        <script src="/js/login.js"></script>
+    </body>
+</html>
