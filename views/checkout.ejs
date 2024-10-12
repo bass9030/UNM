@@ -5,7 +5,38 @@
 </head>
 <body>
     <h1>hello world</h1>
+    <button onclick="javascript:test()">test</button>
+    <video></video>
     <!-- https://github.com/zxing-js/browser -->
     <script type="text/javascript" src="https://unpkg.com/@zxing/browser@latest"></script>
+    <script>
+        async function test() {
+            const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+
+            codeReader.possableFormats = [
+                ZXingBrowser.BarcodeFormat.CODE_39,
+                ZXingBrowser.BarcodeFormat.CODE_128,
+            ];
+
+            const videoInputDevices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+
+            // choose your media device (webcam, frontal camera, back camera, etc.)
+            const selectedDeviceId = videoInputDevices[0].deviceId;
+
+            console.log(`Started decode from camera with id ${selectedDeviceId}`);
+
+            const previewElem = document.querySelector('video');
+
+            // you can use the controls to stop() the scan or switchTorch() if available
+            const controls = await codeReader.decodeFromVideoDevice(selectedDeviceId, previewElem, (result, error, controls) => {
+                console.log(result);
+                // console.log(error)
+                if(!!result) controls.stop();
+            });
+
+            // stops scanning after 20 seconds
+            // setTimeout(() => controls.stop(), 20000);
+        }
+    </script>
 </body>
 </html>
