@@ -25,7 +25,16 @@ router.post("/login", async function (req, res, next) {
         (await argon2.verify(data.data[0].password, body.password))
     ) {
         let token = auth.getToken(data.data[0]);
-        res.setHeader("Authorization", `Bearer ${token.accessToken}`);
+
+        res.cookie("token", token.accessToken, {
+            httpOnly: true,
+            maxAge: 60 * 60 * 1000, // 1시간
+        });
+        res.cookie("refresh-token", token.refreshToken, {
+            httpOnly: true,
+            maxAge: 60 * 60 * 24 * 7 * 1000, // 7일
+        });
+
         res.json({
             success: true,
             data: {
