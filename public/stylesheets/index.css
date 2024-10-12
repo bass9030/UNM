@@ -10,6 +10,7 @@ body {
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    gap: 0.5em;
 }
 
 .mid {
@@ -22,4 +23,9 @@ body {
 
 .buttons {
     margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 0.2em;
 }
