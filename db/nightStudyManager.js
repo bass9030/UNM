@@ -3,12 +3,6 @@ const pool = require("./nightStudyDBConnector.js");
 
 /* ====== typedefs ====== */
 /**
- * @typedef {Object} BaseResult
- * @property {boolean} success 성공여부
- * @property {Object} [error] (에러 발생시) 에러 내용
- */
-
-/**
  * @typedef {Object} User
  * @property {number} _id 내부 ID
  * @property {string} id 학생증 ID
@@ -72,7 +66,7 @@ Object.freeze(ROLE);
 /**
  * !! 디버깅용 외에 사용하지 마세요 !!
  * DB 초기화
- * @returns {BaseResult}
+ * @returns {boolean}
  */
 async function resetDB() {
     let db;
@@ -82,15 +76,7 @@ async function resetDB() {
         await db.execute("DROP TABLE schedule;");
         await db.execute("DROP TABLE user;");
         await db.execute("DROP TABLE student;");
-        return {
-            success: true,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return true;
     } finally {
         if (!!db) db.end();
     }
@@ -135,15 +121,6 @@ async function initTable() {
                 "role TINYINT NOT NULL DEFAULT 0," + // 0: student, 1: admin, 2: checkout
                 "FOREIGN KEY(id) REFERENCES student(id));"
         );
-        return {
-            success: true,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
     } finally {
         if (!!db) db.end();
     }
@@ -167,42 +144,22 @@ async function addUser(user) {
                 await argon2.hash(user.password),
             ]
         );
-        return {
-            success: true,
-        };
-    } catch (e) {
-        return {
-            success: false,
-            error: e,
-        };
     } finally {
         if (!!db) db.end();
     }
 }
 
 /**
- * @typedef {BaseResult & {data: User[]}} UserResult
- */
-/**
  * 사용자 정보 불러오기
  * @param {string} id 학생증 ID
- * @returns {UserResult}
+ * @returns {User[]}
  */
 async function getUserById(id) {
     let db;
     try {
         db = await pool.getConnection();
-
         let result = await db.query("SELECT * FROM user WHERE id = ?;", [id]);
-        return {
-            success: true,
-            data: result,
-        };
-    } catch (e) {
-        return {
-            success: false,
-            error: e,
-        };
+        return result;
     } finally {
         if (!!db) db.end();
     }
@@ -238,7 +195,7 @@ async function getUserByUsername(username) {
 /**
  * 사용자 정보 불러오기
  * @param {number} [page]
- * @returns {UserResult}
+ * @returns {User[]}
  */
 async function getUsers(page) {
     let db;
@@ -250,28 +207,16 @@ async function getUsers(page) {
                 page * 25 + 1,
             ]);
         else result = await db.query("SELECT * FROM user;");
-        return {
-            success: true,
-            data: result,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return result;
     } finally {
         if (!!db) db.end();
     }
 }
 
 /**
- * @typedef {BaseResult & {data: Student[]}} StudentResult
- */
-/**
  * 모든 학생을 반환합니다.
  * @param {number} [page]
- * @returns {StudentResult}
+ * @returns {Student[]}
  */
 async function getAllStudents(page) {
     let db;
@@ -286,16 +231,7 @@ async function getAllStudents(page) {
             );
         else result = await db.query("SELECT * FROM student;");
 
-        return {
-            success: true,
-            data: result,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return result;
     } finally {
         if (!!db) db.end();
     }
@@ -304,7 +240,7 @@ async function getAllStudents(page) {
 /**
  * id에 해당하는 학생을 반환합니다.
  * @param {number} id
- * @returns {StudentResult}
+ * @returns {Student[]}
  */
 async function getStudentById(id) {
     let db;
@@ -313,16 +249,7 @@ async function getStudentById(id) {
         let result = await db.query("SELECT * FROM student WHERE id = ?;", [
             id,
         ]);
-        return {
-            success: true,
-            data: result,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return result;
     } finally {
         if (!!db) db.end();
     }
@@ -331,7 +258,6 @@ async function getStudentById(id) {
 /**
  * 학생을 추가합니다.
  * @param {Student} student
- * @returns {BaseResult}
  */
 async function addStudent(student) {
     let db;
@@ -346,16 +272,7 @@ async function addStudent(student) {
             "INSERT INTO student VALUES(?, ?, ?, ?);",
             [student.id, student.grade, student.classNo, student.number]
         );
-        return {
-            success: true,
-            data: result,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return;
     } finally {
         if (!!db) db.end();
     }
@@ -370,7 +287,7 @@ async function addStudent(student) {
 async function updateSchedule(student, schedule) {
     let db;
     try {
-        db = await pool.getConnection();
+        let db = await pool.getConnection();
         await db.execute(
             "INSERT INTO schedule VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE classNo = ?," +
@@ -416,15 +333,7 @@ async function updateSchedule(student, schedule) {
                 schedule.friSchedule.N2,
             ]
         );
-        return {
-            success: true,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return;
     } finally {
         if (!!db) db.end();
     }
@@ -464,12 +373,9 @@ function rawValue2WeekSchedule(value) {
 }
 
 /**
- * @typedef {BaseResult & {data: WeekSchedule[]}} ScheduleResult
- */
-/**
  * 일정 가져오기
  * @param {Student} student
- * @returns {ScheduleResult}
+ * @returns {WeekSchedule[]}
  */
 async function getSchedule(student) {
     let db;
@@ -478,16 +384,7 @@ async function getSchedule(student) {
         let result = await db.query("SELECT * FROM schedule WHERE id = ?;", [
             student.id,
         ]);
-        return {
-            success: true,
-            data: result.map((e) => rawValue2WeekSchedule(e)),
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return result.map((e) => rawValue2WeekSchedule(e));
     } finally {
         if (!!db) db.end();
     }
@@ -496,7 +393,7 @@ async function getSchedule(student) {
 /**
  * 모든 일정 가져오기
  * @param {number} [page]
- * @returns {ScheduleResult}
+ * @returns {WeekSchedule[]}
  */
 async function getAllSchedules(page) {
     let db;
@@ -509,16 +406,7 @@ async function getAllSchedules(page) {
                 [page * 25 + 1]
             );
         else result = await db.query("SELECT * FROM schedule;");
-        return {
-            success: true,
-            data: result.map((e) => rawValue2WeekSchedule(e)),
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return result.map((e) => rawValue2WeekSchedule(e));
     } finally {
         if (!!db) db.end();
     }
@@ -528,7 +416,6 @@ async function getAllSchedules(page) {
  * 출석처리
  * @param {Student} student
  * @param {PERIOD} period
- * @returns {BaseResult}
  */
 async function registerAttendace(student, period) {
     let db;
@@ -538,23 +425,10 @@ async function registerAttendace(student, period) {
             "INSERT INTO attendanceInfo (id, attendanceTime, period) VALUES(?, CURRENT_TIMESTAMP(), ?);",
             [student.id, period]
         );
-        return {
-            success: true,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
     } finally {
         if (!!db) db.end();
     }
 }
-
-/**
- * @typedef {BaseResult & {data: attendanceInfo[]}} attendanceInfoResult
- */
 
 /**
  * 야자 출석 정보 불러오기 옵션
@@ -564,11 +438,10 @@ async function registerAttendace(student, period) {
  * @property {Date} startDate 특정 날짜범위의 야자 출석 정보를 불러옵니다. 날짜범위의 시작점입니다.
  * @property {Date} endDate 특정 날짜범위의 야자 출석 정보를 불러옵니다. 날짜범위의 종료점입니다.
  */
-
 /**
  * 야자 출석 정보를 반환합니다.
  * @param {attendanceInfoQueryOptions} options 불러오기 옵션
- * @returns {attendanceInfoResult}
+ * @returns {attendanceInfo[]}
  */
 async function getAttendaceInfo(options) {
     let db;
@@ -579,10 +452,7 @@ async function getAttendaceInfo(options) {
         let dateEnd = "";
         if (!!!options) {
             let result = await db.query("SELECT * FROM attendanceInfo;");
-            return {
-                success: true,
-                data: result,
-            };
+            return result;
         } else if (!!options.date) {
             dateStart = `${options.date.getFullYear()}-${
                 options.date.getMonth() + 1
@@ -612,16 +482,7 @@ async function getAttendaceInfo(options) {
                 dateEnd,
             ]
         );
-        return {
-            success: true,
-            data: result,
-        };
-    } catch (e) {
-        console.error(e);
-        return {
-            success: false,
-            error: e,
-        };
+        return result;
     } finally {
         if (!!db) db.end();
     }

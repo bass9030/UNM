@@ -20,6 +20,18 @@ const pool = require("./authDBConnector");
 
 /* ===================== */
 
+async function initTable() {
+    let db;
+    try {
+        db = await pool.getConnection();
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS blacklist (accessToken TEXT, refreshToken TEXT);"
+        );
+    } finally {
+        if (!!db) db.end();
+    }
+}
+
 /**
  * @param {import("../db/nightStudyManager").User} user
  * @returns {Token}
@@ -53,21 +65,12 @@ function getToken(user) {
  * @param {string} accessToken
  */
 function verifyAccessToken(accessToken) {
-    try {
-        let data = jwt.verify(
-            accessToken,
-            process.env.JWT_TOKEN,
-            JWT_ACCESS_CONFIG
-        );
-        return {
-            success: true,
-            data,
-        };
-    } catch (e) {
-        return {
-            success: false,
-        };
-    }
+    let data = jwt.verify(
+        accessToken,
+        process.env.JWT_TOKEN,
+        JWT_ACCESS_CONFIG
+    );
+    return data;
 }
 
 /**
@@ -75,21 +78,12 @@ function verifyAccessToken(accessToken) {
  * @param {string} refreshToken
  */
 function verifyRefreshToken(refreshToken) {
-    try {
-        let data = jwt.verify(
-            refreshToken,
-            process.env.JWT_TOKEN,
-            JWT_REFRESH_CONFIG
-        );
-        return {
-            success: true,
-            data,
-        };
-    } catch {
-        return {
-            success: false,
-        };
-    }
+    let data = jwt.verify(
+        refreshToken,
+        process.env.JWT_TOKEN,
+        JWT_REFRESH_CONFIG
+    );
+    return data;
 }
 
 /**
@@ -98,51 +92,21 @@ function verifyRefreshToken(refreshToken) {
  * @param {import("../db/nightStudyManager").User} user
  */
 function regenAccessToken(refreshToken, user) {
-    let data = verifyRefreshToken(refreshToken);
-    if (!data.success)
-        return {
-            success: false,
-        };
-
-    try {
-        let accessToken = jwt.sign(
-            {
-                id: user.id,
-                role: user.role,
-            },
-            process.env.JWT_TOKEN,
-            JWT_CONFIG
-        );
-        return {
-            success: true,
-            accessToken,
-        };
-    } catch {
-        return {
-            success: false,
-        };
-    }
-}
-
-async function initTable() {
-    let db;
-    try {
-        db = await pool.getConnection();
-        await db.execute(
-            "CREATE TABLE IF NOT EXISTS blacklist (accessToken TEXT, refreshToken TEXT);"
-        );
-        return { success: true };
-    } catch {
-        return { success: false };
-    } finally {
-        if (!!db) db.end();
-    }
+    verifyRefreshToken(refreshToken);
+    let accessToken = jwt.sign(
+        {
+            id: user.id,
+            role: user.role,
+        },
+        process.env.JWT_TOKEN,
+        JWT_CONFIG
+    );
+    return accessToken;
 }
 
 /**
  *
  * @param {Token} token
- * @returns {import("../db/nightStudyManager").BaseResult}
  */
 async function destoryToken(token) {
     let db;
@@ -152,9 +116,6 @@ async function destoryToken(token) {
             token.accessToken,
             token.refreshToken,
         ]);
-        return { success: true };
-    } catch {
-        return { success: false };
     } finally {
         if (!!db) db.end();
     }
