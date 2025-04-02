@@ -1,0 +1,32 @@
+version: "3.8"
+services:
+    unm-web:
+        build:
+            context: .
+            dockerfile: ./dockerfile
+        container_name: unm-web
+        ports:
+            - "3000:3000" # Map host port 8080 to container port 80
+        # environment:
+        #     - YOUR_ENV_VAR: your_value # Set environment variables
+        networks:
+            - unm-network
+        depends_on:
+            - unm-db
+
+    unm-db:
+        build:
+            context: .
+            dockerfile: ./dockerfile.mariadb
+        container_name: unm-db
+        networks:
+            - unm-network
+        environment:
+            - MARIADB_RANDOM_ROOT_PASSWORD: 1
+            - MARIADB_USER: ${DB_USER}
+            - MARIADB_PASSWORD: ${DB_PASSWORD}
+            - MARIADB_DATABASE: ${DB_NAME}
+        volumes:
+            - /unm-db:/var/lib/mysql # Persist database data
+networks:
+    unm-network:
