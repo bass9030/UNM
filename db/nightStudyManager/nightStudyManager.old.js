@@ -69,7 +69,6 @@ Object.freeze(ROLE);
  * @returns {boolean}
  */
 async function resetDB() {
-    let db;
     try {
         db = await pool.getConnection();
         await db.execute("DROP TABLE attendanceInfo;");
